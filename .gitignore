@@ -201,6 +201,12 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# PixelBlend large artifacts
+data/pretrain/content/
+data/pretrain/style/
+data/pretrain/manifest.json
+model/pixelblend_pretrained_model.pth
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
