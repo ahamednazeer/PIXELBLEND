@@ -202,10 +202,10 @@ cython_debug/
 .cursorindexingignore
 
 # PixelBlend large artifacts
-data/pretrain/content/
-data/pretrain/style/
-data/pretrain/manifest.json
-model/pixelblend_pretrained_model.pth
+# data/pretrain/content/
+# data/pretrain/style/
+# data/pretrain/manifest.json
+# model/pixelblend_pretrained_model.pth
 
 # Marimo
 marimo/_static/
