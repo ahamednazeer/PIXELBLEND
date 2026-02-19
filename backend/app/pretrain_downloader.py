@@ -17,7 +17,7 @@ from .pretrain_catalog import local_pretrain_status
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_CONTENT_DATASET = "phiyodr/coco2017"
+
 _DEFAULT_STYLE_DATASET = "huggan/wikiart"
 _IMAGE_SUFFIX = ".jpg"
 _DEFAULT_SCAN_FACTOR = 8
@@ -42,17 +42,14 @@ def start_pretrain_download_if_needed(settings: Settings) -> None:
         return
 
     status = local_pretrain_status(settings)
-    content_images = int(status["content_images"])
     style_images = int(status["style_images"])
 
     if (
-        content_images >= settings.auto_download_content_count
-        and style_images >= settings.auto_download_style_count
+        style_images >= settings.auto_download_style_count
         and settings.pretrain_manifest_path.exists()
     ):
         logger.info(
-            "Pretrain dataset already available (content=%s, style=%s). Skipping startup download.",
-            content_images,
+            "Pretrain dataset already available (style=%s). Skipping startup download.",
             style_images,
         )
         return
@@ -85,7 +82,7 @@ def _download_worker(settings: Settings) -> None:
     _runtime_state["last_started_at"] = datetime.now(timezone.utc).isoformat()
 
     try:
-        logger.info("Starting pretrain dataset download (content=%s, style=%s).", settings.auto_download_content_count, settings.auto_download_style_count)
+        logger.info("Starting pretrain dataset download (style=%s).", settings.auto_download_style_count)
         _download_pretrain_dataset(settings)
         _runtime_state["completed"] = True
         logger.info("Pretrain dataset download completed successfully.")
@@ -107,27 +104,9 @@ def _download_pretrain_dataset(settings: Settings) -> None:
     manifest_path = settings.pretrain_manifest_path
 
     if settings.auto_download_reset:
-        _reset_dir(content_dir)
         _reset_dir(style_dir)
 
-    content_dir.mkdir(parents=True, exist_ok=True)
     style_dir.mkdir(parents=True, exist_ok=True)
-
-    content_total = _save_dataset_images(
-        load_dataset=load_dataset,
-        tqdm=tqdm,
-        dataset_name=_DEFAULT_CONTENT_DATASET,
-        config_name=None,
-        split="train",
-        output_dir=content_dir,
-        target_count=settings.auto_download_content_count,
-        max_edge=settings.auto_download_max_edge,
-        seed=settings.auto_download_seed,
-        streaming=settings.auto_download_streaming,
-        filename_prefix="content",
-        scan_factor=_DEFAULT_SCAN_FACTOR,
-        url_timeout=_DEFAULT_URL_TIMEOUT,
-    )
 
     style_total = _save_dataset_images(
         load_dataset=load_dataset,
@@ -148,12 +127,6 @@ def _download_pretrain_dataset(settings: Settings) -> None:
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "as_of_date": "2026-02-18",
-        "content": {
-            "dataset": _DEFAULT_CONTENT_DATASET,
-            "split": "train",
-            "saved_images": content_total,
-            "output_dir": str(content_dir),
-        },
         "style": {
             "dataset": _DEFAULT_STYLE_DATASET,
             "split": "train",
@@ -161,7 +134,6 @@ def _download_pretrain_dataset(settings: Settings) -> None:
             "output_dir": str(style_dir),
         },
         "sources": {
-            "coco": "https://cocodataset.org/#download",
             "wikiart": "https://huggingface.co/datasets/huggan/wikiart",
         },
     }
