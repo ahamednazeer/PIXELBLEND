@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  pixelblend:
+    image: ahamednazeer/pixelblend:0.1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./model:/app/model
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./backend/.env:/app/backend/.env
+    environment:
+      - PIXELBLEND_HOST=0.0.0.0
+      - PIXELBLEND_PORT=8000
+    restart: unless-stopped

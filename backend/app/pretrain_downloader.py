@@ -4,7 +4,7 @@ import io
 import json
 import logging
 import threading
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -82,7 +82,7 @@ def _download_worker(settings: Settings) -> None:
     _runtime_state["in_progress"] = True
     _runtime_state["completed"] = False
     _runtime_state["last_error"] = ""
-    _runtime_state["last_started_at"] = datetime.now(UTC).isoformat()
+    _runtime_state["last_started_at"] = datetime.now(timezone.utc).isoformat()
 
     try:
         logger.info("Starting pretrain dataset download (content=%s, style=%s).", settings.auto_download_content_count, settings.auto_download_style_count)
@@ -94,7 +94,7 @@ def _download_worker(settings: Settings) -> None:
         logger.exception("Pretrain dataset download failed: %s", exc)
     finally:
         _runtime_state["in_progress"] = False
-        _runtime_state["last_finished_at"] = datetime.now(UTC).isoformat()
+        _runtime_state["last_finished_at"] = datetime.now(timezone.utc).isoformat()
         _download_lock.release()
 
 
@@ -146,7 +146,7 @@ def _download_pretrain_dataset(settings: Settings) -> None:
     )
 
     manifest = {
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "as_of_date": "2026-02-18",
         "content": {
             "dataset": _DEFAULT_CONTENT_DATASET,
