@@ -9,6 +9,11 @@ const downloadLink = document.getElementById("downloadLink");
 const styleWeightInput = document.getElementById("styleWeight");
 const weightValue = document.getElementById("weightValue");
 const weightValueSecondary = document.getElementById("weightValueSecondary");
+const detailStrengthInput = document.getElementById("detailStrength");
+const detailValue = document.getElementById("detailValue");
+const styleIntensityInput = document.getElementById("styleIntensity");
+const styleIntensityValue = document.getElementById("styleIntensityValue");
+const highQualityInput = document.getElementById("highQuality");
 const filePickers = document.querySelectorAll(".file-picker");
 
 function setStatus(message, tone = "neutral") {
@@ -62,8 +67,25 @@ function updateWeightLabel() {
   }
 }
 
+function updateDetailLabel() {
+  const percentage = Math.round(Number(detailStrengthInput.value) * 100);
+  detailValue.textContent = `${percentage}%`;
+  detailStrengthInput.style.setProperty("--range-progress", `${percentage}%`);
+}
+
+function updateStyleIntensityLabel() {
+  const percentage = Math.round(Number(styleIntensityInput.value) * 100);
+  styleIntensityValue.textContent = `${percentage}%`;
+  styleIntensityInput.style.setProperty("--range-progress", `${percentage}%`);
+}
+
 styleWeightInput.addEventListener("input", updateWeightLabel);
+detailStrengthInput.addEventListener("input", updateDetailLabel);
+styleIntensityInput.addEventListener("input", updateStyleIntensityLabel);
+
 updateWeightLabel();
+updateDetailLabel();
+updateStyleIntensityLabel();
 
 filePickers.forEach((picker) => {
   const inputId = picker.dataset.inputId;
@@ -110,6 +132,12 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const payload = new FormData(form);
+  // Checkbox value 'true' is set in HTML, but if unchecked it won't be in FormData.
+  // Backend expects 'true' or 'false' string or boolean.
+  // We can manually Append if needed, but standard submit is usually fine.
+  if (!payload.has("high_quality")) {
+    payload.append("high_quality", "false");
+  }
   generateBtn.disabled = true;
   generateBtn.classList.add("loading");
   setStatus("Generating stylized image...", "busy");

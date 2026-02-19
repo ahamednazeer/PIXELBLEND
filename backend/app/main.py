@@ -56,9 +56,16 @@ async def generate(
     style_image_1: UploadFile = File(...),
     style_image_2: UploadFile = File(...),
     style_1_weight: float = Form(default=0.5),
+    high_quality: bool = Form(default=False),
+    detail_strength: float = Form(default=0.5),
+    style_intensity: float = Form(default=0.5),
 ) -> JSONResponse:
     if not 0.0 <= style_1_weight <= 1.0:
         raise HTTPException(status_code=422, detail="style_1_weight must be between 0.0 and 1.0")
+    if not 0.0 <= detail_strength <= 1.0:
+        raise HTTPException(status_code=422, detail="detail_strength must be between 0.0 and 1.0")
+    if not 0.0 <= style_intensity <= 1.0:
+        raise HTTPException(status_code=422, detail="style_intensity must be between 0.0 and 1.0")
 
     content_pil, content_ext, content_bytes = await _load_upload(content_image, settings)
     style_1_pil, style_1_ext, style_1_bytes = await _load_upload(style_image_1, settings)
@@ -72,7 +79,15 @@ async def generate(
     (job_upload_dir / f"style1{style_1_ext}").write_bytes(style_1_bytes)
     (job_upload_dir / f"style2{style_2_ext}").write_bytes(style_2_bytes)
 
-    stylized = model_runner.stylize(content_pil, style_1_pil, style_2_pil, style_1_weight)
+    stylized = model_runner.stylize(
+        content_pil,
+        style_1_pil,
+        style_2_pil,
+        style_1_weight,
+        high_quality=high_quality,
+        detail_strength=detail_strength,
+        style_intensity=style_intensity,
+    )
 
     output_name = f"stylized_{job_id}.jpg"
     output_path = settings.outputs_dir / output_name

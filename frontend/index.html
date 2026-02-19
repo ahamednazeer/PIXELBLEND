@@ -1,114 +1,119 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PixelBlend | Dual-Style Transfer</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <main class="layout">
-      <section class="panel panel-input">
-        <header class="panel-head">
-          <p class="eyebrow">Pre-Trained Neural Style Transfer</p>
-          <h1>PixelBlend</h1>
-          <p class="subtitle">
-            Blend two artistic styles onto one content image using a CPU-ready pretrained model.
-          </p>
-          <div class="badges">
-            <span class="badge">CPU-ready</span>
-            <span class="badge">Dual-style mix</span>
-          </div>
-        </header>
 
-        <form id="blendForm">
-          <div class="field file-field">
-            <label class="field-label" for="contentImage">Content Image</label>
-            <input
-              id="contentImage"
-              class="native-file"
-              name="content_image"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              required
-            />
-            <div class="file-picker" data-input-id="contentImage">
-              <button class="file-trigger" type="button">Choose file</button>
-              <span id="contentImageName" class="file-name">No file selected</span>
-            </div>
-          </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PixelBlend | Dual-Style Transfer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
 
-          <div class="field file-field">
-            <label class="field-label" for="styleImage1">Style Image 1</label>
-            <input
-              id="styleImage1"
-              class="native-file"
-              name="style_image_1"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              required
-            />
-            <div class="file-picker" data-input-id="styleImage1">
-              <button class="file-trigger" type="button">Choose file</button>
-              <span id="styleImage1Name" class="file-name">No file selected</span>
-            </div>
-          </div>
-
-          <div class="field file-field">
-            <label class="field-label" for="styleImage2">Style Image 2</label>
-            <input
-              id="styleImage2"
-              class="native-file"
-              name="style_image_2"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              required
-            />
-            <div class="file-picker" data-input-id="styleImage2">
-              <button class="file-trigger" type="button">Choose file</button>
-              <span id="styleImage2Name" class="file-name">No file selected</span>
-            </div>
-          </div>
-
-          <div class="field">
-            <div class="weight-head">
-              <label class="field-label" for="styleWeight">Style 1 Weight</label>
-              <div class="weight-values">
-                <output id="weightValue">50%</output>
-                <span id="weightValueSecondary">Style 2: 50%</span>
-              </div>
-            </div>
-            <input id="styleWeight" name="style_1_weight" type="range" min="0" max="1" step="0.01" value="0.5" />
-          </div>
-
-          <button id="generateBtn" type="submit">
-            <span class="btn-title">Generate Stylized Image</span>
-            <span class="btn-sub">Typical runtime: 2-8 seconds</span>
-          </button>
-        </form>
-
-        <p id="statusText" class="status" role="status">Ready to blend.</p>
-      </section>
-
-      <section class="panel panel-output">
-        <div class="output-header">
-          <h2>Result</h2>
-          <a id="downloadLink" class="download" href="#" download hidden>Download</a>
+<body>
+  <main class="layout">
+    <section class="panel panel-input">
+      <header class="panel-head">
+        <p class="eyebrow">Pre-Trained Neural Style Transfer</p>
+        <h1>PixelBlend</h1>
+        <p class="subtitle">
+          Blend two artistic styles onto one content image using a CPU-ready pretrained model.
+        </p>
+        <div class="badges">
+          <span class="badge">CPU-ready</span>
+          <span class="badge">Dual-style mix</span>
         </div>
-        <div class="output-frame" id="outputFrame">
-          <p class="placeholder">Generated image appears here.</p>
-          <img id="resultImage" alt="Stylized output" hidden />
-        </div>
-        <div id="metaText" class="meta"></div>
-      </section>
-    </main>
+      </header>
 
-    <script src="/app.js" defer></script>
-  </body>
+      <form id="blendForm">
+        <div class="field file-field">
+          <label class="field-label" for="contentImage">Content Image</label>
+          <input id="contentImage" class="native-file" name="content_image" type="file"
+            accept="image/png,image/jpeg,image/webp" required />
+          <div class="file-picker" data-input-id="contentImage">
+            <button class="file-trigger" type="button">Choose file</button>
+            <span id="contentImageName" class="file-name">No file selected</span>
+          </div>
+        </div>
+
+        <div class="field file-field">
+          <label class="field-label" for="styleImage1">Style Image 1</label>
+          <input id="styleImage1" class="native-file" name="style_image_1" type="file"
+            accept="image/png,image/jpeg,image/webp" required />
+          <div class="file-picker" data-input-id="styleImage1">
+            <button class="file-trigger" type="button">Choose file</button>
+            <span id="styleImage1Name" class="file-name">No file selected</span>
+          </div>
+        </div>
+
+        <div class="field file-field">
+          <label class="field-label" for="styleImage2">Style Image 2</label>
+          <input id="styleImage2" class="native-file" name="style_image_2" type="file"
+            accept="image/png,image/jpeg,image/webp" required />
+          <div class="file-picker" data-input-id="styleImage2">
+            <button class="file-trigger" type="button">Choose file</button>
+            <span id="styleImage2Name" class="file-name">No file selected</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="weight-head">
+            <label class="field-label" for="styleWeight">Style 1 Weight</label>
+            <div class="weight-values">
+              <output id="weightValue">50%</output>
+              <span id="weightValueSecondary">Style 2: 50%</span>
+            </div>
+          </div>
+          <input id="styleWeight" name="style_1_weight" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+
+        <div class="field">
+          <div class="weight-head">
+            <label class="field-label" for="detailStrength">Detail Strength (Preserve Original)</label>
+            <output id="detailValue">50%</output>
+          </div>
+          <input id="detailStrength" name="detail_strength" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+
+        <div class="field">
+          <div class="weight-head">
+            <label class="field-label" for="styleIntensity">Style Intensity (Match Colors/Contrast)</label>
+            <output id="styleIntensityValue">50%</output>
+          </div>
+          <input id="styleIntensity" name="style_intensity" type="range" min="0" max="1" step="0.01" value="0.5" />
+        </div>
+
+        <div class="field checkbox-field">
+          <input id="highQuality" name="high_quality" type="checkbox" value="true" />
+          <label for="highQuality">Refine Output (High Quality, slower)</label>
+        </div>
+
+        <button id="generateBtn" type="submit">
+          <span class="btn-title">Generate Stylized Image</span>
+          <span class="btn-sub">Typical runtime: 2-8 seconds</span>
+        </button>
+      </form>
+
+      <p id="statusText" class="status" role="status">Ready to blend.</p>
+    </section>
+
+    <section class="panel panel-output">
+      <div class="output-header">
+        <h2>Result</h2>
+        <a id="downloadLink" class="download" href="#" download hidden>Download</a>
+      </div>
+      <div class="output-frame" id="outputFrame">
+        <p class="placeholder">Generated image appears here.</p>
+        <img id="resultImage" alt="Stylized output" hidden />
+      </div>
+      <div id="metaText" class="meta"></div>
+    </section>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+
 </html>

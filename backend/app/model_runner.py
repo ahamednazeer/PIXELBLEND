@@ -135,6 +135,9 @@ class PixelBlendModelRunner:
         style_image_1: Image.Image,
         style_image_2: Image.Image,
         style_1_weight: float,
+        high_quality: bool = False,
+        detail_strength: float = 0.5,
+        style_intensity: float = 0.5,
     ) -> Image.Image:
         style_1_weight = float(np.clip(style_1_weight, 0.0, 1.0))
 
@@ -146,11 +149,15 @@ class PixelBlendModelRunner:
                 style_image_1,
                 style_image_2,
                 style_1_weight,
+                high_quality=high_quality,
+                detail_strength=detail_strength,
+                style_intensity=style_intensity,
             )
 
-        content_tensor = self._to_tensor(content_image)
-        style_tensor_1 = self._to_tensor(style_image_1)
-        style_tensor_2 = self._to_tensor(style_image_2)
+        target_size = 1024 if high_quality else self.settings.output_image_size
+        content_tensor = self._to_tensor(content_image, target_size=target_size)
+        style_tensor_1 = self._to_tensor(style_image_1, target_size=target_size)
+        style_tensor_2 = self._to_tensor(style_image_2, target_size=target_size)
 
         with torch.inference_mode():
             output = self._call_model(content_tensor, style_tensor_1, style_tensor_2, style_1_weight)
@@ -162,6 +169,9 @@ class PixelBlendModelRunner:
             style_image_1,
             style_image_2,
             style_1_weight,
+            high_quality=high_quality,
+            detail_strength=detail_strength,
+            style_intensity=style_intensity,
         )
 
     def _content_preserving_finish(
@@ -171,6 +181,9 @@ class PixelBlendModelRunner:
         style_image_1: Image.Image,
         style_image_2: Image.Image,
         style_1_weight: float,
+        high_quality: bool = False,
+        detail_strength: float = 0.5,
+        style_intensity: float = 0.5,
     ) -> Image.Image:
         """Align colors to style reference while preventing style-image geometry bleed-through."""
         content = content_image.convert("RGB")
@@ -187,37 +200,111 @@ class PixelBlendModelRunner:
         stylized_yuv = _rgb_to_yuv(stylized_arr)
         mixed_style_yuv = _rgb_to_yuv(mixed_style_arr)
 
-        # Keep object geometry from content/stylized output; transfer style as global color statistics.
-        out_yuv = np.empty_like(stylized_yuv)
-        out_yuv[:, :, 0] = 0.62 * content_yuv[:, :, 0] + 0.38 * stylized_yuv[:, :, 0]
+        # 1. Luminance Blending (Structure & Contrast)
+        c_y = content_yuv[:, :, 0]
+        s_y = mixed_style_yuv[:, :, 0]
+        st_y = stylized_yuv[:, :, 0] # The neural output luminance
 
+        # Determine target stats based on Style Intensity
+        # 0.0 -> Match Content Stats (Original Photo Lighting)
+        # 1.0 -> Match Style Stats (Ink/Comic Contrast)
+        target_mean = (1.0 - style_intensity) * c_y.mean() + style_intensity * s_y.mean()
+        target_std = (1.0 - style_intensity) * c_y.std() + style_intensity * s_y.std()
+
+        # Helper to remap a channel to target stats
+        def remap_channel(source, t_mean, t_std):
+            s_mean = source.mean()
+            s_std = source.std()
+            return ((source - s_mean) / (s_std + 1e-6)) * t_std + t_mean
+
+        # A. Base Background Structure construction
+        # We blend Content Structure vs Neural Output Structure
+        # 0.0 Intensity -> 0.7*Content + 0.3*Stylized (Default/Historical behavior)
+        # 1.0 Intensity -> 0.0*Content + 1.0*Stylized (Pure Neural Style)
+        # This ensures we actually SEE the style strokes at 100%
+        content_w = 0.7 * (1.0 - style_intensity)
+        stylized_w = 1.0 - content_w
+        
+        base_y = content_w * c_y + stylized_w * st_y
+        
+        # Remap the base structure to the target luminance stats
+        out_y = np.clip(remap_channel(base_y, target_mean, target_std), 0.0, 1.0)
+        
+        # 2. Color Blending (Chrominance)
+        # Match colors to style
         matched_u = _match_channel_stats(stylized_yuv[:, :, 1], mixed_style_yuv[:, :, 1])
         matched_v = _match_channel_stats(stylized_yuv[:, :, 2], mixed_style_yuv[:, :, 2])
-        out_yuv[:, :, 1] = 0.45 * stylized_yuv[:, :, 1] + 0.55 * matched_u
-        out_yuv[:, :, 2] = 0.45 * stylized_yuv[:, :, 2] + 0.55 * matched_v
+        
+        # Blend Color Target
+        # 0.0 -> Stylized Output Colors (Usually close to content/style mix)
+        # 1.0 -> Strict Style Palette
+        # Actually, let's blend target U/V
+        target_u = (1.0 - style_intensity) * matched_u + style_intensity * mixed_style_yuv[:, :, 1]
+        target_v = (1.0 - style_intensity) * matched_v + style_intensity * mixed_style_yuv[:, :, 2]
+        
+        out_yuv = np.empty_like(stylized_yuv)
+        out_yuv[:, :, 0] = out_y
+        out_yuv[:, :, 1] = target_u
+        out_yuv[:, :, 2] = target_v
+        
         combined_rgb = np.clip(_yuv_to_rgb(out_yuv), 0.0, 1.0)
 
-        # Mild palette anchoring improves style-color alignment without copying style layout.
+        # Mild palette anchoring
         palette = _extract_palette(mixed_style_img, num_colors=18)
         palette_snapped = _snap_to_palette(combined_rgb, palette)
-        palette_aligned = np.clip(0.84 * combined_rgb + 0.16 * palette_snapped, 0.0, 1.0)
+        
+        palette_weight = 0.16 + (style_intensity * 0.20)
+        palette_aligned = np.clip((1.0 - palette_weight) * combined_rgb + palette_weight * palette_snapped, 0.0, 1.0)
 
-        # Preserve content geometry enough to keep objects readable.
-        gy, gx = np.gradient(content_yuv[:, :, 0])
+        # 3. Detail Preservation (The Fix for "Looks like Original")
+        # When we inject "Detail" (Original Content), we MUST tone-map it to the style first!
+        # Otherwise, injecting raw content pixels overrides the style we just created.
+        
+        # Create a "Style-Matched Content" version
+        # It has Content Structure (Luminance) but mapped to Style Stats
+        c_y_mapped = remap_channel(c_y, target_mean, target_std)
+        c_u_matched = (1.0 - style_intensity) * content_yuv[:,:,1] + style_intensity * target_u
+        c_v_matched = (1.0 - style_intensity) * content_yuv[:,:,2] + style_intensity * target_v
+        
+        content_matched_yuv = np.dstack([c_y_mapped, c_u_matched, c_v_matched])
+        content_matched_rgb = np.clip(_yuv_to_rgb(content_matched_yuv), 0.0, 1.0)
+
+        # Calculate Edge Mask
+        gy, gx = np.gradient(c_y)
         edge_energy = np.sqrt(gx * gx + gy * gy)
         edge_energy = edge_energy / (edge_energy.max() + 1e-6)
-        edge_keep = np.clip(0.18 + 0.42 * edge_energy, 0.0, 0.62)[:, :, None]
-        structure_preserved = palette_aligned * (1.0 - edge_keep) + content_arr * edge_keep
 
-        # Add detail from model output only (prevents style-image objects/faces ghosting in).
-        smooth_stylized = np.asarray(stylized.filter(ImageFilter.GaussianBlur(radius=2.2)), dtype=np.float32) / 255.0
+        # Base offset keeps faint details; multiplier rewards strong edges
+        # Refined formula: Lower base_offset to let style pattern shows in flat areas.
+        # Higher multiplier to aggressively keep edges.
+        base_offset = 0.05 * detail_strength  # Max 0.05 base retention (was 0.50!)
+        multiplier = 4.0 * detail_strength    # Strong reaction to edges
+        
+        # Allow keeping up to 95% of original structure at max strength
+        max_keep = 0.62 + (detail_strength * 0.35) if detail_strength < 0.8 else 0.95
+
+        edge_keep = np.clip(base_offset + multiplier * edge_energy, 0.0, max_keep)[:, :, None]
+        
+        # BLEND: Use content_matched_rgb instead of raw content_arr
+        structure_preserved = palette_aligned * (1.0 - edge_keep) + content_matched_rgb * edge_keep
+
+        # Add detail from model output (Texture)
+        model_detail_weight = 0.12 * (1.0 - detail_strength * 0.8)
+        blur_radius = 1.0 if high_quality else 2.2
+        smooth_stylized = (
+            np.asarray(stylized.filter(ImageFilter.GaussianBlur(radius=blur_radius)), dtype=np.float32) / 255.0
+        )
         stylized_detail = stylized_arr - smooth_stylized
-        textured = np.clip(structure_preserved + 0.12 * stylized_detail, 0.0, 1.0)
+        textured = np.clip(structure_preserved + model_detail_weight * stylized_detail, 0.0, 1.0)
 
-        # Light posterization for style feel while preserving realism.
+        if high_quality:
+            return Image.fromarray((textured * 255).astype(np.uint8))
+        
         poster_levels = 16.0
+        poster_weight = 0.10
+
         posterized = np.round(textured * (poster_levels - 1.0)) / (poster_levels - 1.0)
-        final_rgb = np.clip(0.90 * textured + 0.10 * posterized, 0.0, 1.0)
+        final_rgb = np.clip((1.0 - poster_weight) * textured + poster_weight * posterized, 0.0, 1.0)
         return Image.fromarray((final_rgb * 255).astype(np.uint8))
 
     def _call_model(
@@ -269,9 +356,10 @@ class PixelBlendModelRunner:
 
         raise TypeError(f"Unsupported model output type: {type(output)!r}")
 
-    def _to_tensor(self, image: Image.Image) -> torch.Tensor:
+    def _to_tensor(self, image: Image.Image, target_size: int | None = None) -> torch.Tensor:
+        size = target_size or self.settings.output_image_size
         resized = image.convert("RGB").resize(
-            (self.settings.output_image_size, self.settings.output_image_size),
+            (size, size),
             Image.Resampling.LANCZOS,
         )
         arr = np.asarray(resized, dtype=np.float32) / 255.0
