@@ -13,7 +13,7 @@ from PIL import Image
 from .config import Settings, get_settings
 from .model_runner import ModelLoadError, PixelBlendModelRunner
 from .pretrain_catalog import build_pretrain_catalog_payload, local_pretrain_status
-from .pretrain_downloader import get_download_runtime_state, start_pretrain_download_if_needed
+from .pretrain_downloader import get_download_runtime_state
 
 SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
@@ -37,7 +37,6 @@ def on_startup() -> None:
         model_runner.load()
     except ModelLoadError as exc:
         raise RuntimeError(f"Failed to initialize pretrained model: {exc}") from exc
-    start_pretrain_download_if_needed(settings)
 
 
 @app.get("/api/health")

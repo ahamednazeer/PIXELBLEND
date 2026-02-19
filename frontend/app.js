@@ -154,11 +154,7 @@ form.addEventListener("submit", async (event) => {
 
 (async () => {
   try {
-    const [modelResponse, pretrainResponse] = await Promise.all([
-      fetch("/api/model-status"),
-      fetch("/api/pretrain/status"),
-    ]);
-
+    const modelResponse = await fetch("/api/model-status");
     if (!modelResponse.ok) return;
 
     const modelStatus = await modelResponse.json();
@@ -166,19 +162,6 @@ form.addEventListener("submit", async (event) => {
       { label: "Startup mode", value: modelStatus.mode },
       { label: "Model status", value: modelStatus.message },
     ];
-
-    if (pretrainResponse.ok) {
-      const pretrainStatus = await pretrainResponse.json();
-      entries.push(
-        { label: "Content dataset", value: String(pretrainStatus.content_images) },
-        { label: "Style dataset", value: String(pretrainStatus.style_images) },
-      );
-      if (pretrainStatus.download_runtime?.in_progress) {
-        entries.push({ label: "Dataset download", value: "In progress" });
-      } else if (pretrainStatus.download_runtime?.completed) {
-        entries.push({ label: "Dataset download", value: "Completed" });
-      }
-    }
 
     setMetaEntries(entries);
   } catch {
